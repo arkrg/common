@@ -5,10 +5,10 @@ module sync_fifo #(
 ) (
     input                   clk,
     input                   rstn,
-    input                   req_write,
-    input                   req_read,
-    input  [WIDTH_DATA-1:0] data_write,
-    output [WIDTH_DATA-1:0] data_read,
+    input                   cmd_push,
+    input                   cmd_pop,
+    input  [WIDTH_DATA-1:0] data_push,
+    output [WIDTH_DATA-1:0] data_pop,
     output                  flag_empty,
     output                  flag_full
 );
@@ -36,8 +36,8 @@ module sync_fifo_controller #(
 ) (
     input                   clk,
     input                   rstn,
-    input                   req_write,
-    input                   req_read,
+    input                   cmd_push,
+    input                   cmd_pop,
     output [WIDTH_ADDR-1:0] addr_write,
     output [WIDTH_ADDR-1:0] addr_read,
     output                  flag_empty,
@@ -69,7 +69,7 @@ module sync_fifo_controller #(
   always_comb begin : ptr_write_logic
     n_phase_write = c_phase_write;
     n_ptr_write   = c_ptr_write;
-    if (req_write) begin
+    if (cmd_push) begin
       if (!flag_full) begin
         if (c_ptr_write == DEPTH_FIFO - 1) begin
           n_ptr_write   = 0;
@@ -82,7 +82,7 @@ module sync_fifo_controller #(
   always_comb begin : ptr_read_logic
     n_phase_read = c_phase_read;
     n_ptr_read   = c_ptr_read;
-    if (req_read) begin
+    if (cmd_pop) begin
       if (!flag_empty) begin
         if (c_ptr_read == DEPTH_FIFO - 1) begin
           n_ptr_read   = 0;
@@ -94,7 +94,7 @@ module sync_fifo_controller #(
 
   assign flag_full = (c_phase_read == c_phase_write) && (c_ptr_read == c_ptr_write);
   assign flag_empty = (c_phase_read != c_phase_write) && (c_ptr_read == c_ptr_write);
-  assign enable_write = req_write & (~flag_full);
+  assign enable_write = cmd_push & (~flag_full);
 endmodule
 
 module sync_fifo_buffer #(
@@ -106,14 +106,14 @@ module sync_fifo_buffer #(
     input                   enable_write,
     input  [WIDTH_ADDR-1:0] addr_write,
     input  [WIDTH_ADDR-1:0] addr_read,
-    input  [WIDTH_DATA-1:0] data_write,
-    output [WIDTH_DATA-1:0] data_read
+    input  [WIDTH_DATA-1:0] data_push,
+    output [WIDTH_DATA-1:0] data_pop
 );
 
   logic [WIDTH_DATA-1:0] buffer[DEPTH_FIFO];
 
   always_ff @(posedge clk) begin
-    if (enable_write) buffer[addr_write] <= data_write;
+    if (enable_write) buffer[addr_write] <= data_push;
   end
-  assign data_read = buffer[addr_read];
+  assign data_pop = buffer[addr_read];
 endmodule
